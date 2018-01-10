@@ -1,0 +1,601 @@
+﻿
+
+@{
+    ViewBag.Title = "Employee";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div ng-app="myApp" ng-controller="EmployeeCtrl">
+    <script>
+        var App = angular.module("myApp", []);
+        App.controller("EmployeeCtrl", function ($scope, $http) {
+            $scope.Employee = { Employee_id: '0' };                                    //Employee object
+            $scope.btn_text = "Save";                                                   //Btn text
+            $scope.btn_deleteProperty = "hidden";
+            $scope.EmployeeList = [];                                                       // employee List
+            $scope.EducationdelList = [];                                                   //Education List
+            $scope.ExpDelList = [];                                                         //Expense Delete List
+            $scope.GetDertment = function () {                                              //Get Departments
+                $http.get(
+                '/api/Departments',
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+                ).then(function (response) {
+                    $scope.DepartmentList = response.data;
+                });
+            };
+            $scope.GetSection = function () {                                         //Get Section
+                $http.get(
+                '/api/Sections',
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+                ).then(function (response) {
+                    $scope.SectionList = null;
+                    var list = [];
+                    for (var i = 0; i < response.data.length; i++) {
+                        if (response.data[i].Department_id == $scope.Employee.Department_id)
+                        {
+                            list.push(response.data[i]);
+                        }
+
+                    }
+                    $scope.SectionList = list;
+                });
+            };
+            $scope.GetEmployee = function () {                                    //Get employee 
+                $scope.GetDertment();
+
+                $http.get(
+              '/Mvc_Company/GetEmployee',
+              {
+                  headers: {
+                      'Content-Type': 'application/json'
+                  }
+              }
+              ).then(function (response) {
+                  $scope.EmployeeList = response.data;
+              });
+              
+            };
+            $scope.GetEmployee();
+            $scope.save = function (employee) {
+                if (employee.Employee_id == 0)                  //If id is 0 then insert
+                {
+                    insert(employee);
+
+                }
+                else {                                          //Else update employee
+                    update(employee);
+                }
+
+            };
+            $scope.Load = function (employee) {                            //load grid data into form
+                $scope.Employee["Employee_id"] = employee.Employee_id;
+                $scope.Employee["Department_id"]=employee.Department_id;
+                $scope.GetSection();
+                $scope.Employee["Section_id"] = employee.Section_id;
+                $scope.Employee["Employee_Name"] = employee.Employee_Name;
+                $scope.Employee["Employee_salary"] = employee.Employee_salary;
+                $scope.Employee["Employee_Password"] = employee.Employee_Password;
+                var getReportColumnsParams = {
+                    "id": employee.Employee_id
+                };
+                $http.get(                                                              //Get Employee Education with Employee Id on manual mvc controller json return due to virtual problem
+                '/Mvc_Company/GetEmployee_Education/' + employee.Employee_id,
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+                ).then(
+                    function (res) {                                                    //If success
+                        $scope.EmployeeEducationList = res.data;
+                    },
+                    function (error) {                                                  //If Error
+                        $scope.EmployeeEducationList = [];
+                    }
+                );
+
+                $http.get(                                                               //Get Employee Experience with Employee Id on manual mvc controller json return due to virtual problem
+                  '/Mvc_Company/GetEmployee_Experience/' + employee.Employee_id,
+                  {
+                      headers: {
+                          'Content-Type': 'application/json'
+                      }
+                  }
+                  ).then(
+                      function (res) {                                              //If Success
+                          $scope.ExperienceList = res.data;
+                      },
+                      function (error) {                                            //If Error
+                          $scope.ExperienceList = [];
+                      }
+                  );
+              
+                $scope.btn_text = "Update";
+                $scope.btn_deleteProperty = "";
+            }
+            function insert(Employeeobj)                                                //Employee Insertion
+            {   
+                $http.post(
+                '/api/Employees',
+                JSON.stringify(Employeeobj),
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+                ).then(function (res) {
+                    angular.forEach($scope.EmployeeEducationList, function (Education_obj) {                    //Insert all education of employee
+                        $http.post(
+                       '/api/Employee_Education',
+                       JSON.stringify(Education_obj),
+                       {
+                           headers: {
+                               'Content-Type': 'application/json'
+                           }
+                       }
+                       );
+                    });
+                    angular.forEach($scope.ExperienceList, function (obj) {                                     //Insert All experience of employee
+                        $http.post(
+                       '/api/Experiences',
+                       JSON.stringify(obj),
+                       {
+                           headers: {
+                               'Content-Type': 'application/json'
+                           }
+                       }
+                       );
+                    });
+
+                    $scope.Clear();
+                    $scope.GetEmployee();
+                }, function (res) {
+                    //Error here
+                });
+
+               
+
+
+            }
+            
+            function update(Employeeobj) {          //Update Employee
+
+                $http.put(
+                '/api/Employees/'+Employeeobj.Employee_id,
+                JSON.stringify(Employeeobj),
+                {
+                    headers: {'Content-Type': 'application/json'}
+                }
+                ).then(function (res) {                                                                                     //Update
+                    angular.forEach($scope.EmployeeEducationList, function (Education_obj) {                                
+                        if (Education_obj.Employee_Education_id > 0) {                                                      //if previous
+                            $http.put(                                                                                      //Update all Education of employee
+                            '/api/Employee_Education/' + Education_obj.Employee_Education_id,
+                            JSON.stringify(Education_obj),
+                            {
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        }
+                        else
+                        {                                                                           
+                            $http.post(                                                                                     //if new
+                          '/api/Employee_Education',                                                                        //Insert Education of Employeee
+                          JSON.stringify(Education_obj),
+                          {
+                              headers: {
+                                  'Content-Type': 'application/json'
+                              }
+                          }
+                          );
+                        }                       
+                    });
+                    angular.forEach($scope.ExperienceList, function (Expr_obj) {
+                        if (Expr_obj.Experience_id > 0) {                                                                   //if previous
+                            $http.put(                                                                                      //Update Experience of Employee
+                            '/api/Experiences/' + Expr_obj.Experience_id,
+                            JSON.stringify(Expr_obj),
+                            {
+                                headers: { 'Content-Type': 'application/json' }
+                            });
+                        }
+                        else {
+                            $http.post(                                                                                     //if new
+                          '/api/Experiences',                                                                               //Insert Experince of employee
+                          JSON.stringify(Expr_obj),
+                          {
+                              headers: {
+                                  'Content-Type': 'application/json'
+                              }
+                          }
+                          );
+                        }
+                    });
+                    angular.forEach($scope.EducationdelList, function (Education_obj) {                                     //Existed list user want to delete of Employee Education
+                        $http.delete(
+                       '/api/Employee_Education/' + Education_obj.Employee_Education_id,
+                       JSON.stringify(Education_obj),
+                       {
+                           headers: { 'Content-Type': 'application/json' }
+                       }
+                       );
+                    });
+                    angular.forEach($scope.ExpDelList, function (Exp_obj) {                                     //Existed list user want to delete of Employee Experience
+                        $http.delete(
+                       '/api/Experiences/' + Exp_obj.Experience_id,
+                       JSON.stringify(Exp_obj),
+                       {
+                           headers: { 'Content-Type': 'application/json' }
+                       }
+                       );
+                    });
+
+                    $scope.Clear();
+                    $scope.GetEmployee();
+                }, function (res) {
+                    //Error here
+                });
+            }
+            $scope.delete = function (Employeeobj) {                                                    //Delete Employee
+                $http.delete(
+                '/api/Employees/' + Employeeobj.Employee_id,
+                JSON.stringify(Employeeobj),
+                {
+                    headers: { 'Content-Type': 'application/json' }
+                }
+                ).then(function (res) {
+                    angular.forEach($scope.EmployeeEducationList, function (Education_obj) {                                        //Delete all Eduction
+                        $http.delete(
+                       '/api/Employee_Education/' + Education_obj.Employee_Education_id,
+                       JSON.stringify(Education_obj),
+                       {
+                           headers: { 'Content-Type': 'application/json' }
+                       }
+                       );
+                    });
+                    angular.forEach($scope.EmployeeEducationList, function (Exp_obj) {                                              //Delete all experience
+                        $http.delete(
+                       '/api/Experiences/' + Exp_obj.Experience_id,
+                       JSON.stringify(Exp_obj),
+                       {
+                           headers: { 'Content-Type': 'application/json' }
+                       }
+                       );
+                    });
+                    $scope.Clear();
+                    $scope.GetEmployee();
+                }, function (res) {
+                    //Error here
+                });
+
+
+            };
+            $scope.Clear = function () {                                                                                            //Clear form
+                $scope.EducationdelList = [];
+                $scope.EmployeeEducationList = [];
+                $scope.ExperienceList = [];
+                $scope.ExpDelList = [];
+                $scope.Employee = null;
+                $scope.Employee = { Employee_id: '0' };
+                $scope.btn_text = "Save";
+                $scope.btn_deleteProperty = "hidden";
+            };
+            $scope.EmployeeEducationList = [];
+            $scope.addNew = function (Education_obj) {
+                $scope.EmployeeEducationList.push({
+                    'Employee_Education_id':"0",
+                    'Employee_Education_DegreeName': "",
+                    'Employee_Education_DegreeYear': "@DateTime.Now.Year",
+                    'Employee_Education_University': "",
+                    'Employee_Education_TotalMarks': "0",
+                    'Employee_Education_ObtainedMarks':"0",
+                    'Employee_Education_Percentage': "0",
+                    'Employee_id':$scope.Employee.Employee_id
+                });
+                $scope.MarksCalculation();
+            };
+
+            $scope.remove = function () {
+                var newDataList = [];
+                $scope.selectedAll = false;
+                angular.forEach($scope.EmployeeEducationList, function (selected) {
+                    if (!selected.selected) {
+                        newDataList.push(selected);
+                    }
+                    else {
+                        if (selected.Employee_Education_id > 0) {
+                            $scope.EducationdelList.push(selected);
+                        }
+                    }
+                });
+                $scope.EmployeeEducationList = newDataList;
+            };
+
+            $scope.checkAll = function () {
+                if (!$scope.selectedAll) {
+                    $scope.selectedAll = false;
+                } else {
+
+                    $scope.selectedAll = true;
+                }
+                angular.forEach($scope.EmployeeEducationList, function (Education_obj) {
+                    Education_obj.selected = $scope.selectedAll;
+                });
+            };
+            $scope.MarksCalculation = function () {
+                angular.forEach($scope.EmployeeEducationList, function (Education_obj) {
+                    Education_obj.Employee_Education_Percentage = 0;
+                    if (Education_obj.Employee_Education_TotalMarks == null) {
+                        Education_obj.Employee_Education_TotalMarks = 0;
+                    }
+                    if (Education_obj.Employee_Education_ObtainedMarks == null) {
+                        Education_obj.Employee_Education_ObtainedMarks = 0;
+                    }
+                    if (Education_obj.Employee_Education_TotalMarks < Education_obj.Employee_Education_ObtainedMarks) {
+                        Education_obj.Employee_Education_ObtainedMarks = Education_obj.Employee_Education_TotalMarks;
+                    }
+                    Education_obj.Employee_Education_Percentage = Math.round((Education_obj.Employee_Education_ObtainedMarks / Education_obj.Employee_Education_TotalMarks) * 100);
+                });
+            };
+
+            $scope.ExperienceList = [];
+            $scope.addNew_exp = function (Experience_obj) {
+                $scope.ExperienceList.push({
+                    'Experience_id': "0",
+                    'Experience_Companyname': "",
+                    'Experience_Start_Year': "@(DateTime.Now.Year-1)",
+                    'Experience_End_Year': "@DateTime.Now.Year",
+                    'Employee_id': $scope.Employee.Employee_id
+                });
+            };
+
+            $scope.remove_exp = function () {
+                var newDataList = [];
+                $scope.selectedAll = false;
+                angular.forEach($scope.ExperienceList, function (selected) {
+                    if (!selected.selected) {
+                        newDataList.push(selected);
+                    }
+                    else {
+                        if (selected.Experience_id > 0) {
+                            $scope.ExpDelList.push(selected);
+                        }
+                    }
+                });
+                $scope.ExperienceList = newDataList;
+            };
+
+            $scope.checkAll_exp = function () {
+                if (!$scope.selectedAll) {
+                    $scope.selectedAll = false;
+                } else {
+
+                    $scope.selectedAll = true;
+                }
+                angular.forEach($scope.ExperienceList, function (Experience_obj) {
+                    Experience_obj.selected = $scope.selectedAll;
+                });
+            };
+
+
+
+
+
+        });
+    </script>
+    <h2>Employess</h2>
+
+
+
+    <div class="form-horizontal" style="margin-left:10%">
+        <form name="EmployeeForm" ng-submit="save(Employee)">
+            <div class="form-group hidden">
+                <input type="text" name="Employee_id" ng-model="Employee.Employee_id" placeholder="Employee id" class="form-control" />
+
+            </div>
+            <div class="form-group">
+                <select name="Deprtment_id" class="form-control"
+                        ng-model="Employee.Department_id"
+                        ng-options="Department.Department_id as Department.Department_name for Department in DepartmentList"
+                        ng-change="GetSection()" ;
+                        required>
+                    <option value="">Select Department</option>
+                </select>
+                <span style="color:red" ng-show="EmployeeForm.Deprtment_id.$invalid &&EmployeeForm.Deprtment_id.$dirty">
+                    <span ng-show="EmployeeForm.Deprtment_id.$error.required">Select Department is required.</span>
+                </span>
+            </div>
+            <div class="form-group">
+                <select name="Section_id" class="form-control"
+                        ng-model="Employee.Section_id"
+                        ng-options="Section.Section_id as Section.Section_name for Section in SectionList"
+                        required>
+                    <option value="">Select Section</option>
+                </select>
+                <span style="color:red" ng-show="EmployeeForm.Section_id.$invalid &&EmployeeForm.Section_id.$dirty">
+                    <span ng-show="EmployeeForm.Section_id.$error.required">Select Section is required.</span>
+                </span>
+            </div>
+            <div class="form-group">
+                <input type="text" name="Employee_Name" ng-model="Employee.Employee_Name" pattern="[A-Za-z ]{2,20}" required placeholder="Employee Name" class="form-control" />
+                <span style="color:red" ng-show="EmployeeForm.Employee_Name.$invalid &&EmployeeForm.Employee_Name.$dirty">
+                    <span ng-show="EmployeeForm.Employee_Name.$error.required">Name is required.</span>
+                    <span ng-show="EmployeeForm.Employee_Name.$error.pattern">Invalid Name</span>
+                </span>
+            </div>
+            <div class="form-group">
+                <input type="number" name="Employee_salary" ng-model="Employee.Employee_salary" pattern="[0-9]{1,11}" placeholder="Employee Salary" class="form-control" required />
+
+                <span style="color:red" ng-show="EmployeeForm.Employee_salary.$invalid &&EmployeeForm.Employee_salary.$dirty">
+                    <br />
+                    <span ng-show="EmployeeForm.Employee_salary.$error.required">Salary is Required.</span>
+                    <span ng-show="EmployeeForm.Employee_salary.$error.pattern">invalid</span>
+                </span>
+
+            </div>
+            <div class="form-group">
+                <input type="password" name="Employee_Password" ng-model="Employee.Employee_Password" ng-change="analyze(Employee.Employee_Password)" pattern="(?=^.{8,}$)((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$" placeholder="EmployeePassword" class="form-control" required />
+
+                <span style="color:red" ng-show="EmployeeForm.Employee_Password.$invalid &&EmployeeForm.Employee_Password.$dirty">
+                    <br />
+                    <span ng-show="EmployeeForm.Employee_Password.$error.required">Passsword is required.</span>
+                    <span ng-show="EmployeeForm.Employee_Password.$error.pattern">Password should contain at least on digit, one upercase, one lowercase and 8 length</span>
+                </span>
+
+            </div>
+            <hr />
+            <h4>Education</h4>
+                <div class="col-sm-12">
+                        <div class="panel panel-default">
+                            <div class="panel-body">
+                                <table class="table table-striped table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th><input type="checkbox" ng-model="selectedAll" ng-click="checkAll()" /></th>
+                                            <th>Degree Name</th>
+                                            <th>Degree Year</th>
+                                            <th>University / Board</th>
+                                            <th>Total Marks/CGPA</th>
+                                            <th>Obtained Marks/CGPA</th>
+                                            <th>Percentage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr ng-repeat="Education_obj in EmployeeEducationList">
+                                            <td>
+                                                <input type="checkbox" ng-model="Education_obj.selected" />
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control" ng-model="Education_obj.Employee_Education_DegreeName" required />
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control" ng-model="Education_obj.Employee_Education_DegreeYear" pattern="[0-9]{4}" title="Invalid Degree Year" required />
+                                            </td>
+                                            <td>
+                                                <input type="text" class="form-control" ng-model="Education_obj.Employee_Education_University" required />
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control" ng-model="Education_obj.Employee_Education_TotalMarks" ng-change="MarksCalculation()" required />
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control" ng-model="Education_obj.Employee_Education_ObtainedMarks" ng-change="MarksCalculation()" required />
+                                            </td>
+                                            <td>
+                                                <input type="number" class="form-control" ng-model="Education_obj.Employee_Education_Percentage" ng-change="MarksCalculation()" required />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+
+                                <div class="form-group" style="margin-right:2px">
+                                    <input ng-hide="!EmployeeEducationList.length" type="button" class="btn btn-danger pull-right" ng-click="remove()" value="Remove Selected">
+                                    <input type="button" class="btn btn-primary addnew pull-right" value="Add New" ng-click="addNew()" style="margin-right:2px">
+                                </div>
+                            </div>
+                        </div>
+                   
+                </div>
+
+
+            <hr />
+            <h4>Education</h4>
+            <div class="col-sm-12">
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        <table class="table table-striped table-bordered">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" ng-model="selectedAll" ng-click="checkAll_exp()" /></th>
+                                    <th>Company Name</th>
+                                    <th>Start Year</th>
+                                    <th>End Year</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr ng-repeat="Experience_obj in ExperienceList">
+                                    <td>
+                                        <input type="checkbox" ng-model="Experience_obj.selected" />
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control" ng-model="Experience_obj.Experience_Companyname" required />
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control" ng-model="Experience_obj.Experience_Start_Year" pattern="[0-9]{4}" title="Invalid Year" required />
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control" ng-model="Experience_obj.Experience_End_Year"  pattern="[0-9]{4}" title="Invalid Year" required />
+                                    </td>
+                                   
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="form-group" style="margin-right:2px">
+                            <input ng-hide="!ExperienceList.length" type="button" class="btn btn-danger pull-right" ng-click="remove_exp()" value="Remove Selected">
+                            <input type="button" class="btn btn-primary addNew_exp pull-right" value="Add New" ng-click="addNew_exp()" style="margin-right:2px">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="form-group">
+                <input type="submit" value="{{btn_text}}" class="btn btn-lg btn-default"
+                       ng-disabled="EmployeeForm.Employee_Name.$invalid || EmployeeForm.Employee_Password.$invalid || EmployeeForm.Employee_salary.$invalid" ng-click="" />
+
+                <input type="button" value="Delete" class="btn btn-lg btn-danger {{btn_deleteProperty}}"
+                       ng-disabled="EmployeeForm.Employee_Name.$invalid || EmployeeForm.Employee_Password.$invalid " ng-click="delete(Employee)" />
+
+                <input type="button" value="Clear" class="btn btn-lg btn-warning"
+                       ng-click="Clear()" />
+                
+            </div>
+        </form>
+    </div>
+
+    <hr />
+    <h3>Existing Employees <input type="button" value="Refresh" class="btn btn-primary"
+       ng-click="GetEmployee()" /></h3>
+    <table class="table">
+        <tr>
+            <th>Department</th>
+            <th>Section</th>
+            <th>
+                Employee Name
+            </th>
+            <th>
+                Employee Salary
+            </th>
+            <th>
+                Employee Password
+            </th>
+        </tr>
+
+        <tr ng-repeat="item in EmployeeList" ng-click="Load(item)">
+            <td>
+                {{item.Department.Department_name}}
+            </td>
+            <td>
+                {{item.Section.Section_name}}
+            </td>
+
+            <td>
+                {{item.Employee_Name}}
+            </td>
+            <td>
+                {{item.Employee_salary}}
+            </td>
+            <td>
+                <input type="password" value="{{item.Employee_Password}}" disabled />
+            </td>
+        </tr>
+
+
+    </table>
+</div>

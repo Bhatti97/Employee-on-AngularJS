@@ -1,0 +1,163 @@
+﻿
+
+@{
+    ViewBag.Title = "Department";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div ng-app="myApp" ng-controller="DepartmentCtrl">
+    <script>
+        var App = angular.module("myApp", []);
+        App.controller("DepartmentCtrl", function ($scope, $http) {
+            $scope.Department = { Department_id: '0' };
+            $scope.btn_text = "Save";
+            $scope.btn_deleteProperty = "hidden";
+
+            $scope.DepartmentList = [];
+            $scope.GetDepartment = function () {            //Get All department List
+                $http.get(
+                '/api/Departments',
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+                ).then(function (response) {
+                    $scope.DepartmentList = response.data;
+                });
+            };
+            $scope.GetDepartment();
+            $scope.save = function (Department) {
+
+              //  var Departmentobj = { "Department_Name": $scope.Department_Name, "Department_Password": $scope.Department_Password, "Department_id": $scope.Department_id };
+                if (Department.Department_id == 0)
+                {
+                    insert(Department);
+
+                }
+                else {
+                    update(Department);
+                }
+
+            };
+
+            $scope.Load = function (Department) {                      //Load Existing department in form
+                $scope.Department = {
+                    Department_id: Department.Department_id,
+                    Department_name: Department.Department_name
+                };
+                $scope.btn_text = "Update";
+                $scope.btn_deleteProperty = "";
+            }
+
+            function insert(Departmentobj)                           //Insertion
+            {
+                $http.post(
+                '/api/Departments',
+                JSON.stringify(Departmentobj),
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+                ).then(function (res) {
+                    $scope.Clear();
+                    $scope.GetDepartment();
+                }, function (res) {
+                    //Error here
+                });
+
+            }
+            function update(Departmentobj) {                    //Update
+
+                $http.put(
+                '/api/Departments/'+Departmentobj.Department_id,
+                JSON.stringify(Departmentobj),
+                {
+                    headers: {'Content-Type': 'application/json'}
+                }
+                ).then(function (res) {
+                    $scope.Clear();
+                    $scope.GetDepartment();
+                }, function (res) {
+                    //Error here
+                });
+            }
+            $scope.delete = function (Departmentobj) {              //Delete
+                $http.delete(
+                '/api/Departments/' + Departmentobj.Department_id,
+                JSON.stringify(Departmentobj),
+                {
+                    headers: { 'Content-Type': 'application/json' }
+                }
+                ).then(function (res) {
+                    $scope.Clear();
+                    $scope.GetDepartment();
+                }, function (res) {
+                    //Error here
+                });
+
+
+            };
+            $scope.Clear = function () {                    //Clear all
+                $scope.Department = null;
+                $scope.Department = { Department_id: '0' };
+                $scope.btn_text = "Save";
+                $scope.btn_deleteProperty = "hidden";
+            };
+
+
+        });
+    </script>
+    <h2>Department</h2>
+
+
+
+    <div class="form-horizontal" style="margin-left:10%">
+        <form name="DepartmentForm">
+            <div class="form-group hidden">
+                <input type="text" name="Department_id" ng-model="Department.Department_id" placeholder="Department id" class="form-control" />
+
+            </div>
+            <div class="form-group">
+                <input type="text" name="Department_name" ng-model="Department.Department_name" pattern="[A-Za-z ]{2,20}" required placeholder="Department Name" class="form-control" />
+                <span style="color:red" ng-show="DepartmentForm.Department_name.$invalid &&DepartmentForm.Department_name.$dirty">
+                    <span ng-show="DepartmentForm.Department_name.$error.required">Name is required.</span>
+                    <span ng-show="DepartmentForm.Department_name.$error.pattern">Invalid Name</span>
+                </span>
+            </div>
+         
+            <div class="form-group">
+
+                <input type="button" value="{{btn_text}}" class="btn btn-default"
+                       ng-disabled="DepartmentForm.Department_name.$invalid " ng-click="save(Department)" />
+
+                <input type="button" value="Delete" class="btn btn-danger {{btn_deleteProperty}}"
+                       ng-disabled="DepartmentForm.Department_name.$invalid " ng-click="delete(Department)" />
+
+                <input type="button" value="Clear" class="btn btn-warning"
+                       ng-click="Clear()" />
+                <input type="button" value="Refresh" class="btn btn-primary"
+                       ng-click="GetDepartment()" />
+            </div>
+        </form>
+    </div>
+
+    <table class="table">
+        <tr>
+            <th>
+                Department Name
+            </th>
+            
+        </tr>
+
+        <tr ng-repeat="item in DepartmentList" ng-click="Load(item)">
+            <td>
+                {{item.Department_name}}
+            </td>
+            
+        </tr>
+
+
+    </table>
+</div>

@@ -1,0 +1,208 @@
+﻿
+
+@{
+    ViewBag.Title = "Section";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div ng-app="myApp" ng-controller="SectionCtrl">
+    <script>
+
+        
+        var App = angular.module("myApp", []);
+        App.controller("SectionCtrl", function ($scope, $http) {
+
+            $scope.Section = { Section_id: '0' };
+            $scope.btn_text = "Save";
+            $scope.btn_deleteProperty = "hidden";
+
+            $scope.SectionList = [];
+            $scope.dept = {};
+            $scope.GetDertment = function () {                      //Get Department
+                $http.get(
+                '/api/Departments',
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+                ).then(function (response) {
+                    $scope.DepartmentList = response.data;
+                });
+            };
+            $scope.GetSection = function () {                       //Get Section
+                $scope.GetDertment();
+                $.ajax({
+                    type: "Post",
+                    traditional: true,
+                    async: false,
+                    cache: false,
+                    url: '/Mvc_Company/GetSection',
+                    context: document.body,
+                    success: function (json) { 
+                         $scope.SectionList = json;
+                    },
+                    error: function (xhr) {
+                        //debugger;
+                        alert('error');
+                    }
+                });               
+            };
+          
+            $scope.GetSection();
+
+            $scope.save = function (Section) {                      ///Save
+
+              //  var Sectionobj = { "Section_Name": $scope.Section_Name, "Section_Password": $scope.Section_Password, "Section_id": $scope.Section_id };
+                if (Section.Section_id == 0)
+                {
+                    insert(Section);
+
+                }
+                else {
+                    update(Section);
+                }
+
+            };
+
+            $scope.Load = function (Section) {                      //Load Existing section in form
+                $scope.Section = {
+                    Section_id: Section.Section_id,
+                    Section_name: Section.Section_name,
+                    Department_id: Section.Department_id
+                };
+                $scope.btn_text = "Update";
+                $scope.btn_deleteProperty = "";
+            }
+
+            function insert(Sectionobj)                         //Insertion
+            {
+                $http.post(
+                '/api/Sections',
+                JSON.stringify(Sectionobj),
+                {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                }
+                ).then(function (res) {
+                    $scope.Clear();
+                    $scope.GetSection();
+                }, function (res) {
+                    //Error here
+                });
+
+            }
+            function update(Sectionobj) {                       //Update
+
+                $http.put(
+                '/api/Sections/'+Sectionobj.Section_id,
+                JSON.stringify(Sectionobj),
+                {
+                    headers: {'Content-Type': 'application/json'}
+                }
+                ).then(function (res) {
+                    $scope.Clear();
+                    $scope.GetSection();
+                }, function (res) {
+                    //Error here
+                });
+            }
+            $scope.delete = function (Sectionobj) {                     //Delete
+                $http.delete(
+                '/api/Sections/' + Sectionobj.Section_id,
+                JSON.stringify(Sectionobj),
+                {
+                    headers: { 'Content-Type': 'application/json' }
+                }
+                ).then(function (res) {
+                    $scope.Clear();
+                    $scope.GetSection();
+                }, function (res) {
+                    //Error here
+                });
+
+
+            };
+            $scope.Clear = function () {
+                $scope.Section = null;
+                $scope.Section = { Section_id: '0' };
+                $scope.btn_text = "Save";
+                $scope.btn_deleteProperty = "hidden";
+            };
+
+
+        });
+    </script>
+    <h2>Section</h2>
+
+
+
+    <div class="form-horizontal" style="margin-left:10%">
+        <form name="SectionForm">
+            <div class="form-group hidden">
+                <input type="text" name="Section_id" ng-model="Section.Section_id" placeholder="Section id" class="form-control" />
+
+            </div>
+            <div class="form-group">              
+                <select name="Deprtment_id" class="form-control" 
+                        ng-model="Section.Department_id"
+                        ng-options="Department.Department_id as Department.Department_name for Department in DepartmentList"
+                        
+                        required>
+                    <option value="">Select Department</option>
+                </select>
+                <span style="color:red" ng-show="SectionForm.Deprtment_id.$invalid &&SectionForm.Deprtment_id.$dirty">
+                    <span ng-show="SectionForm.Deprtment_id.$error.required">Select Department is required.</span>
+                </span>
+            </div>
+            <div class="form-group">
+                <input type="text" name="Section_name" ng-model="Section.Section_name" pattern="[A-Za-z ]{2,20}" required placeholder="Section Name" class="form-control" />
+                <span style="color:red" ng-show="SectionForm.Section_name.$invalid &&SectionForm.Section_name.$dirty">
+                    <span ng-show="SectionForm.Section_name.$error.required">Name is required.</span>
+                    <span ng-show="SectionForm.Section_name.$error.pattern">Invalid Name</span>
+                </span>
+               
+            </div>
+          
+
+            <div class="form-group">
+
+                <input type="button" value="{{btn_text}}" class="btn btn-default"
+                       ng-disabled="SectionForm.Section_name.$invalid " ng-click="save(Section)" />
+
+                <input type="button" value="Delete" class="btn btn-danger {{btn_deleteProperty}}"
+                       ng-disabled="SectionForm.Section_name.$invalid " ng-click="delete(Section)" />
+
+                <input type="button" value="Clear" class="btn btn-warning"
+                       ng-click="Clear()" />
+                <input type="button" value="Refresh" class="btn btn-primary"
+                       ng-click="GetSection()" />
+            </div>
+        </form>
+    </div>
+
+    <table class="table">
+        <tr>
+            <th>
+                Department Name
+            </th>
+            <th>
+                Section Name
+            </th>
+
+        </tr>
+
+        <tr ng-repeat="item in SectionList" ng-click="Load(item)">
+            <td>
+                {{item.Department.Department_name}} 
+            </td>
+            <td>
+                {{item.Section_name}}
+            </td>
+
+        </tr>
+
+
+    </table>
+</div>
